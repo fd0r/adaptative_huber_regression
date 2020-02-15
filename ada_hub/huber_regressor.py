@@ -172,3 +172,14 @@ Raising gamma_u might be a good idea!""".format(
             intercept = np.ones((X.shape[0],))
             X = np.c_[intercept, X]
         return X @ self.beta
+
+class TruncatedHuberRegressor(HuberRegressor):
+
+    def __init__(self, trunc_param, *kwargs):
+        super().__init__(*kwargs)
+        self.trunc_param = trunc_param
+
+        def fit(**kwargs):
+            kwargs['X'] = np.min(np.max(-self.trunc_param, kwargs['X']), self.trunc_param)
+
+            return super().fit(**kwargs)
