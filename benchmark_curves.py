@@ -8,6 +8,9 @@ from sklearn.linear_model import HuberRegressor as SkHuberRegressor
 from collections import defaultdict
 import json
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import json
+
 
 def generate_data(noise, n, d):
 
@@ -20,101 +23,114 @@ def generate_data(noise, n, d):
     return x, y, beta
 
 
-import matplotlib.pyplot as plt
-
-
 def scatter(x, y, var=0, name="scatter.png"):
     plt.scatter(x[:, var], y)
     plt.savefig(name)
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 # The goal is to generate the figures 3 and 4 from the original paper
 
 if __name__ == "__main__":
     np.random.seed(42)
+    params = [(500, 5), (500, 1000)]
+    for n, d in params:
+        dfs = np.arange(1, 3, 0.1) + 0.1
+        deltas = list()
+        beta_hats_linear = list()
+        beta_hats = list()
+        for df in tqdm(dfs):
+            temp = list()
+            temp_linear = list()
+            for _ in range(100):
+                delta = df - 1 - 0.05
+                noise = scipy.stats.t(df=df)
 
-    ds = [5, 100, 500, 1000]
-    n = 100
-    tau = 2
-    loss = HuberLoss(tau=tau)
-    noises = [
-        (scipy.stats.norm(0, 4), "normal"),
-        (scipy.stats.t(df=1.5), "t-distrib"),
-        (scipy.stats.lognorm(s=4, scale=np.exp(0)), "log-norm"),
-    ]
+                x, y, beta_opt = generate_data(noise, n, d)
 
-    results = defaultdict(
-        lambda: defaultdict(
-            lambda: defaultdict(lambda: defaultdict(lambda: dict()))
+                beta_opt = np.concatenate([[0], beta_opt])
+
+                c_tau = 0.5  # cross-val between {.5, 1, 1.5} in original paper
+                c_lambda = 1e-2  # cross-val between {.5, 1, 1.5} in original paper
+
+                t = np.log(n)
+                y_hat = np.mean(y)
+                sigma_hat = np.sqrt(np.mean((y - y_hat) ** 2))
+                # for simplicity
+
+                if d >= n:
+                    n_eff = n / np.log(d)  # for simplicity
+                    lambda_reg = c_lambda * sigma_hat * np.sqrt(n_eff / t)
+                else:
+                    n_eff = n
+                    lambda_reg = 0
+
+                tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
+                loss = HuberLoss(tau=tau)
+                regressor = AdHuberRegressor(tau=tau, lambda_reg=lambda_reg)
+                regressor.fit(
+                    x,
+                    y,
+                    beta_0=np.random.random(d + 1) * 2 * sigma_hat,
+                    phi_0=1e-6,
+                    convergence_threshold=1e-8,
+                )
+                beta_hat = np.concatenate([[regressor.intercept_], regressor.coef_])
+                temp.append(beta_hat)
+                regressor_linear = LinearRegression()
+                regressor_linear.fit(x, y)
+                beta_hat_linear = np.concatenate(
+                    [[regressor_linear.intercept_], regressor_linear.coef_]
+                )
+                temp_linear.append(beta_hat_linear)
+
+            deltas.append(delta)
+            beta_hats.append(temp)
+            beta_hats_linear.append(temp_linear)
+
+        plt.plot(
+            deltas,
+            [
+                np.mean(
+                    [-np.log(np.sqrt(np.sum((beta - beta_opt) ** 2))) for beta in elt]
+                )
+                for elt in beta_hats
+            ],
         )
-    )
+        plt.savefig("log_errors_{}_{}.png".format(n, d))
+        plt.close()
 
-    delta = df − 1 − 0.05
+        plt.plot(
+            deltas,
+            [
+                np.mean([np.sqrt(np.sum((beta - beta_opt) ** 2)) for beta in elt])
+                for elt in beta_hats
+            ],
+            label="huber",
+        )
+        plt.plot(
+            deltas,
+            [
+                np.mean([np.sqrt(np.sum((beta - beta_opt) ** 2)) for beta in elt])
+                for elt in beta_hats_linear
+            ],
+            label="linear",
+        )
+        plt.legend()
+        plt.savefig("errors_{}_{}.png".format(n, d))
+        plt.close()
 
+        with open("errors_{}_{}.json".format(n, d), "w") as file:
+            file.write(
+                json.dumps(
+                    {"beta_hats": beta_hats, "beta_hats_linear": beta_hats_linear},
+                    cls=NumpyEncoder,
+                )
+            )
 
-
-    for d in ds:
-        for noise, name in noises:
-            print()
-            print(d, name)
-
-            x, y, beta_opt = generate_data(noise, n, d)
-            beta_opt = np.concatenate([[0], beta_opt])
-            scatter(x, y, 0, "{}_{}.png".format(d, name))
-            c_tau = 0.5  # cross-val between {.5, 1, 1.5} in original paper
-            c_lambda = 1e-2  # cross-val between {.5, 1, 1.5} in original paper
-
-            t = np.log(n)
-            y_hat = np.mean(y)
-            sigma_hat = np.sqrt(np.mean((y - y_hat) ** 2))
-            # for simplicity
-
-            if d >= n:
-                n_eff = n / np.log(d)  # for simplicity
-                lambda_reg = c_lambda * sigma_hat * np.sqrt(n_eff / t)
-            else:
-                n_eff = n
-                lambda_reg = 0
-
-            tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
-
-            for reg_name, regressor, args, kwargs in [
-                ("Linear Regression", LinearRegression(), list(), dict()),
-                (
-                    "Adaptative Huber Regression",
-                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg),
-                    list(),
-                    dict(
-                        beta_0=np.random.random(d + 1) * 2 * sigma_hat,
-                        phi_0=1e-6,
-                        convergence_threshold=1e-8,
-                    ),
-                ),
-                (
-                    "Huber Regression",
-                    SkHuberRegressor(epsilon=tau, alpha=lambda_reg, max_iter=1000),
-                    list(),
-                    dict(),
-                ),
-            ]:
-                temp_res = list()
-                for _ in tqdm(range(100)):
-                    regressor.fit(x, y, *args, **kwargs)
-                    y_pred = regressor.predict(x)
-                    beta_hat = np.concatenate([[regressor.intercept_], regressor.coef_])
-                    if False:
-                        print(
-                            reg_name,
-                            beta_hat,
-                            np.sum((y - y_pred) ** 2),
-                            loss(y, y_pred),
-                            np.sum((beta_opt - beta_hat) ** 2),
-                            sep="\n\t",
-                        )
-                    temp_res.append(np.sum((beta_opt - beta_hat) ** 2))
-
-                results[name][d][reg_name]['mean'] = np.mean(temp_res)
-                results[name][d][reg_name]['std'] = np.std(temp_res)
-    
-    with open('results.json', 'w') as file:
-        file.write(json.dumps(results))

@@ -46,6 +46,7 @@ class HuberRegressor(BaseEstimator):
     ):
         super().__init__()
         self.loss = HuberLoss(tau=tau)
+        self.tau = tau
         self.lambda_reg = lambda_reg
         self.logger = logging.getLogger("HuberRegressor")
         self.logger.setLevel(verbose)
