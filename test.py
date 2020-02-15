@@ -29,8 +29,6 @@ tau = c_tau*sigma_hat*np.sqrt(n_eff/t)
 lambda_reg = c_lambda*sigma_hat*np.sqrt(n_eff/t)
 print('Tau={}\nLambda={}'.format(tau, lambda_reg))
 
-lambda_reg = 1e-1
-
 regressor = HuberRegressor(
     tau=tau, lambda_reg=lambda_reg, verbose='DEBUG')
 

@@ -29,8 +29,6 @@ class HuberLoss:
             return x
         return self.tau * np.sign(x)
 
-    def grad_loss(self, y_true, y_pred):
-        return self.grad(np.abs(y_true - y_pred))
 
 
 def S(x, lamb):
@@ -85,10 +83,10 @@ class HuberRegressor(BaseEstimator):
             pred_k = X @ beta_k
             loss_k = self.loss(y, pred_k)
 
-            # TODO: CHECK THIS
-            grad_k = np.mean(
-                self.loss.grad_loss(y, pred_k)
-                .reshape(y.shape+(1,))*X, axis=0)
+            grad_k = -np.mean(
+                self.loss.grad(y - pred_k).reshape(y.shape+(1,))*
+                X, axis=0
+            )
             
             self.logger.debug('Loss at step {} = {} with grad={}'.format(
                 step_counter, loss_k, grad_k))
