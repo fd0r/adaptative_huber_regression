@@ -8,7 +8,7 @@ x = np.random.random((n, d))
 
 
 
-y = np.random.random((n, )) + 5*x[:,0] + 10*x[:,1] + 4
+y = np.random.random((n, ))-.5 + 5*x[:,0] + 10*x[:,1] + 4
 
 optimal_beta = np.array([4, 5, 10, 0, 0, 0])
 
