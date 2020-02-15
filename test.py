@@ -33,7 +33,8 @@ regressor = HuberRegressor(
     tau=tau, lambda_reg=lambda_reg, verbose='DEBUG')
 
 regressor.fit(
-    x, y, beta_0=np.random.random(d+1,)*2*sigma_hat, phi_0=10)
+    x, y, beta_0=np.random.random(d+1,)*2*sigma_hat, 
+    phi_0=1e-2)
 
 y_pred = regressor.predict(x)
 
