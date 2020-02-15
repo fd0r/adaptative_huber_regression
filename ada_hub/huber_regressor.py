@@ -118,10 +118,10 @@ class HuberRegressor(BaseEstimator):
 
                 diff = beta_k_1 - beta_k
                 norm_diff = np.sum(diff ** 2)
-                beta_k_1_l1 = self.lambda_reg * np.sum(np.abs(beta_k_1))
-                g_k = loss_k + grad_k @ diff + (phi / 2) * norm_diff + beta_k_1_l1
+                
+                g_k = loss_k + grad_k @ diff + (phi / 2) * norm_diff
 
-                if g_k < self.loss(y, X @ beta_k_1) + beta_k_1_l1:
+                if g_k < self.loss(y, X @ beta_k_1):
                     phi *= self.gamma_u
                 else:
                     break  # Found good phi
@@ -175,8 +175,8 @@ class TruncatedHuberRegressor(HuberRegressor):
         self.trunc_param = trunc_param
 
         def fit(**kwargs):
-            kwargs["X"] = np.min(
-                np.max(-self.trunc_param, kwargs["X"]), self.trunc_param
+            kwargs["X"] = np.minimum(
+                np.maximum(-self.trunc_param, kwargs["X"]), self.trunc_param
             )
 
             return super().fit(**kwargs)
