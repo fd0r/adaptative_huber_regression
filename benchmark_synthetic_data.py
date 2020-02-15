@@ -36,8 +36,7 @@ if __name__ == "__main__":
 
     ds = [5, 100, 500, 1000]
     n = 100
-    tau = 2
-    loss = HuberLoss(tau=tau)
+
     noises = [
         (scipy.stats.norm(0, 4), "normal"),
         (scipy.stats.t(df=1.5), "t-distrib"),
@@ -75,6 +74,7 @@ if __name__ == "__main__":
                     lambda_reg = 0
 
                 tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
+                loss = HuberLoss(tau=tau)
 
                 for reg_name, regressor, args, kwargs in [
                     ("Linear Regression", LinearRegression(), list(), dict()),
