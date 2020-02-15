@@ -63,9 +63,9 @@ class HuberRegressor(BaseEstimator):
         assert beta_0.shape == X.shape[1:]
 
         # Without regularization
-        if self.lambda_reg == 0:
-            raise NotImplementedError(
-                "Version without regularization not implemented yet")
+        #if self.lambda_reg == 0:
+        #    raise NotImplementedError(
+        #        "Version without regularization not implemented yet")
 
         # With regularization: LAMM Algorithm
         self.logger.info(
