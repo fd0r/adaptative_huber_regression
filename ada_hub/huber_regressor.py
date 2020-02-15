@@ -32,7 +32,7 @@ class HuberLoss:
 
 
 def S(x, lamb):
-    return np.sign(x)*np.max(np.c_[np.abs(x)-lamb, np.zeros(x.shape)], axis=1)
+    return np.sign(x)*np.maximum(np.abs(x)-lamb, np.zeros(x.shape))
 
 class HuberRegressor(BaseEstimator):
     def __init__(self, tau, lambda_reg=0, gamma_u=2, verbose=0, fit_intercept=True,
@@ -73,16 +73,16 @@ class HuberRegressor(BaseEstimator):
         
         step_counter = 0
         beta_k = beta_0
+        phi = phi_0           
 
         # Optimal beta loop
         while True:
             self.logger.info("Step: {}".format(step_counter))
             # Find optimal phi
             phi_counter = 0
-            phi = phi_0           
             pred_k = X @ beta_k
             loss_k = self.loss(y, pred_k)
-
+            phi = max(phi_0, phi/self.gamma_u) 
             grad_k = -np.mean(
                 self.loss.grad(y - pred_k).reshape(y.shape+(1,))*
                 X, axis=0
@@ -93,11 +93,7 @@ class HuberRegressor(BaseEstimator):
 
             # Optimal phi loop
             while True:
-                beta_k_1 = beta_k - (grad_k / self.lambda_reg)
-                self.logger.debug(
-                    'Beta_k before applying S: {}\nWith in S = {}'.format(
-                        beta_k_1, beta_k_1 - self.lambda_reg/phi))
-                beta_k_1 = S(beta_k_1, self.lambda_reg/phi)
+                beta_k_1 = S(beta_k - grad_k/phi, self.lambda_reg/phi)
                 self.logger.debug(
                     'Beta_k after applying S:  {}\nWith lambda in S = {}'.format(
                         beta_k_1, self.lambda_reg/phi))
@@ -110,6 +106,7 @@ class HuberRegressor(BaseEstimator):
                 # TODO: check this
                 self.logger.debug('G(beta_k_1 | beta_k) = {}\nLoss(beta_k_1) = {}'.format(
                     g_k, self.loss(y, X @ beta_k_1)))
+                
                 if g_k < self.loss(y, X @ beta_k_1):
                     phi *= self.gamma_u
                 else:
