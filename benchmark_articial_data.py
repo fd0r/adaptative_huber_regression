@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 ("Linear Regression", LinearRegression(), list(), dict()),
                 (
                     "Adaptative Huber Regression",
-                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg, verbose="WARNING"),
+                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg, verbose="DEBUG"),
                     list(),
                     dict(
                         beta_0=np.random.random(d + 1) * 2 * sigma_hat,

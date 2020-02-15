@@ -15,9 +15,10 @@ class HuberLoss:
         self.grad = np.vectorize(self._huber_grad)
 
     def __call__(self, y_true: np.array, y_pred: np.array):
-        return np.mean(self.loss(np.abs(y_true - y_pred)))
+        return np.mean(self.loss(y_true - y_pred))
 
     def _huber_loss(self, x):
+        x = np.abs(x)
         if x <= self.tau:
             return (x ** 2) / 2
         return self.tau * x - self.tau_squared_2
@@ -67,7 +68,7 @@ class HuberRegressor(BaseEstimator):
             return self.beta[0]
         return 0
 
-    def fit(self, X, y, beta_0, phi_0=2, convergence_threshold=1e-6):
+    def fit(self, X, y, beta_0, phi_0=1e-8, convergence_threshold=1e-6):
         # Add intercept if needed
         if self.fit_intercept:
             intercept = np.ones((X.shape[0],))
@@ -117,24 +118,17 @@ class HuberRegressor(BaseEstimator):
 
                 diff = beta_k_1 - beta_k
                 norm_diff = np.sum(diff ** 2)
-
-                g_k = loss_k + grad_k @ diff + (phi / 2) * norm_diff
-
-                # TODO: check this
-                self.logger.debug(
-                    "G(beta_k_1 | beta_k) = {}\nLoss(beta_k_1) = {}".format(
-                        g_k, self.loss(y, X @ beta_k_1)
-                    )
+                beta_k_1_l1 = self.lambda_reg * np.sum(np.abs(beta_k_1))
+                g_k = (
+                    loss_k
+                    + grad_k @ diff
+                    + (phi / 2) * norm_diff
+                    + beta_k_1_l1
                 )
 
-                if g_k < self.loss(y, X @ beta_k_1):
+                if g_k < self.loss(y, X @ beta_k_1) + beta_k_1_l1:
                     phi *= self.gamma_u
                 else:
-                    self.logger.debug(
-                        "Found good phi to be: {} after {} iters".format(
-                            phi, phi_counter
-                        )
-                    )
                     break  # Found good phi
                 phi_counter += 1
 
@@ -150,6 +144,7 @@ Raising gamma_u might be a good idea!""".format(
             self.logger.debug(
                 "Converged after {} steps with phi_k={}".format(phi_counter, phi)
             )
+
             self.logger.debug("Old Beta: {} \nNew Beta: {}".format(beta_k, beta_k_1))
             # Update weights
             self.beta = beta_k_1
