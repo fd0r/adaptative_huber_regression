@@ -16,4 +16,13 @@ class HuberLoss:
         )
 
 class HuberRegressor(torch.nn.Module):
-    pass
+    def __init__(self, fit_intercept):
+        self.beta = None
+        self.fit_intercept = fit_intercept
+
+    def __call__(self, X):
+        # TODO: Add Intercept
+        return X @ self.beta
+
+    def fit(self, X, y):
+        pass

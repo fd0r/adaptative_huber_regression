@@ -33,6 +33,9 @@ class HuberLoss:
         return self.grad(np.abs(y_true - y_pred))
 
 
+def S(x, lamb):
+    return np.sign(x)*np.max(np.c_[np.abs(x)-lamb, np.zeros(x.shape)], axis=1)
+
 class HuberRegressor(BaseEstimator):
     def __init__(self, tau, lambda_reg=0, gamma_u=2, verbose=0, fit_intercept=True,
                  max_iter=3000, max_phi_iter=1000):
@@ -48,13 +51,16 @@ class HuberRegressor(BaseEstimator):
         self.max_iter = max_iter
         self.max_phi_iter = max_phi_iter
 
-    def fit(self, X, y, beta_0, phi_0):
+    def fit(self, X, y, beta_0, phi_0=2, convergence_threshold=1e-6):
+        # TODO: Implement optimal parameters as in paper
+
 
         # Add intercept if needed
         if self.fit_intercept:
             intercept = np.ones((X.shape[0],))
             X = np.c_[intercept, X]
 
+        # Assert basic properties
         assert phi_0 != 0
         assert beta_0.shape == X.shape[1:]
 
@@ -62,7 +68,6 @@ class HuberRegressor(BaseEstimator):
         if self.lambda_reg == 0:
             raise NotImplementedError(
                 "Version without regularization not implemented yet")
-            return self
 
         # With regularization: LAMM Algorithm
         self.logger.info(
@@ -70,62 +75,79 @@ class HuberRegressor(BaseEstimator):
         
         step_counter = 0
         beta_k = beta_0
-        zeros = np.zeros(beta_0.shape)
 
+        # Optimal beta loop
         while True:
             self.logger.info("Step: {}".format(step_counter))
             # Find optimal phi
             phi_counter = 0
-            phi = phi_0
-            
+            phi = phi_0           
             pred_k = X @ beta_k
             loss_k = self.loss(y, pred_k)
+
+            # TODO: CHECK THIS
             grad_k = np.mean(
                 self.loss.grad_loss(y, pred_k)
                 .reshape(y.shape+(1,))*X, axis=0)
+            
             self.logger.debug('Loss at step {} = {} with grad={}'.format(
                 step_counter, loss_k, grad_k))
 
+            # Optimal phi loop
             while True:
-                self.logger.debug("Running step: {} {}".format(
-                    step_counter, phi_counter))
                 beta_k_1 = beta_k - (grad_k / self.lambda_reg)
-                self.logger.debug(beta_k_1)
-                beta_k_1 = np.sign(beta_k_1)*np.max(np.c_[
-                    np.abs(beta_k_1) - (self.lambda_reg/phi), zeros], axis=1)
-                self.logger.debug(beta_k_1)
+                self.logger.debug(
+                    'Beta_k before applying S: {}\nWith in S = {}'.format(
+                        beta_k_1, beta_k_1 - self.lambda_reg/phi))
+                beta_k_1 = S(beta_k_1, self.lambda_reg/phi)
+                self.logger.debug(
+                    'Beta_k after applying S:  {}\nWith lambda in S = {}'.format(
+                        beta_k_1, self.lambda_reg/phi))
+
                 diff = beta_k_1 - beta_k
-                g_k = loss_k + grad_k @ diff + (phi/2)*np.sum(diff**2)
+                norm_diff = np.sum(diff**2)
+
+                g_k = loss_k + grad_k @ diff + (phi/2)*norm_diff
 
                 # TODO: check this
+                self.logger.debug('G(beta_k_1 | beta_k) = {}\nLoss(beta_k_1) = {}'.format(
+                    g_k, self.loss(y, X @ beta_k_1)))
                 if g_k < self.loss(y, X @ beta_k_1):
                     phi *= self.gamma_u
                 else:
+                    self.logger.debug("Found good phi to be: {} after {} iters".format(phi, phi_counter))
                     break  # Found good phi
                 phi_counter += 1
+                
                 # If max iter
                 if phi_counter > self.max_phi_iter:
                     raise Exception("""Couldn't find phi with \gamma_u={}! 
 Raising gamma_u might be a good idea!""".format(self.gamma_u))
+
             self.logger.debug('Converged after {} steps with phi_k={}'.format(
                 phi_counter, phi
             ))
-            self.logger.debug("Old Beta: {} \n New Beta: {}".format(
+            self.logger.debug("Old Beta: {} \nNew Beta: {}".format(
                 beta_k, beta_k_1
             ))
+            # Update weights
             self.beta = beta_k_1
             beta_k = beta_k_1
             step_counter += 1
 
-            # If Max iter
+            # If too many iterations
             if step_counter > self.max_iter:
                 self.logger.warning(
                     "Algorithm did not converge after {} iterations.".format(
                         step_counter))
                 break
 
+            # If convergence
+            if np.sqrt(norm_diff) < convergence_threshold:
+                break
+
         self.logger.info(
-            "Algorithm runned {} iterations.".format(step_counter))
+            "Algorithm runned {} iterations.".format(step_counter-1))
         return self
 
     def predict(self, X):
