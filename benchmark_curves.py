@@ -5,7 +5,9 @@ from sklearn.linear_model import LinearRegression
 from ada_hub.huber_regressor import HuberRegressor as AdHuberRegressor
 from ada_hub.huber_regressor import HuberLoss
 from sklearn.linear_model import HuberRegressor as SkHuberRegressor
-
+from collections import defaultdict
+import json
+from tqdm import tqdm
 
 def generate_data(noise, n, d):
 
@@ -26,7 +28,7 @@ def scatter(x, y, var=0, name="scatter.png"):
     plt.savefig(name)
 
 
-# In the original paper l2 errors are averaged over 100 simulations.add()
+# The goal is to generate the figures 3 and 4 from the original paper
 
 if __name__ == "__main__":
     np.random.seed(42)
@@ -40,6 +42,17 @@ if __name__ == "__main__":
         (scipy.stats.t(df=1.5), "t-distrib"),
         (scipy.stats.lognorm(s=4, scale=np.exp(0)), "log-norm"),
     ]
+
+    results = defaultdict(
+        lambda: defaultdict(
+            lambda: defaultdict(lambda: defaultdict(lambda: dict()))
+        )
+    )
+
+    delta = df − 1 − 0.05
+
+
+
     for d in ds:
         for noise, name in noises:
             print()
@@ -65,11 +78,11 @@ if __name__ == "__main__":
 
             tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
 
-            for name, regressor, args, kwargs in [
+            for reg_name, regressor, args, kwargs in [
                 ("Linear Regression", LinearRegression(), list(), dict()),
                 (
                     "Adaptative Huber Regression",
-                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg, verbose="DEBUG"),
+                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg),
                     list(),
                     dict(
                         beta_0=np.random.random(d + 1) * 2 * sigma_hat,
@@ -84,14 +97,24 @@ if __name__ == "__main__":
                     dict(),
                 ),
             ]:
-                regressor.fit(x, y, *args, **kwargs)
-                y_pred = regressor.predict(x)
-                beta_hat = np.concatenate([[regressor.intercept_], regressor.coef_])
-                print(
-                    name,
-                    beta_hat,
-                    np.sum((y - y_pred) ** 2),
-                    loss(y, y_pred),
-                    np.sum((beta_opt - beta_hat) ** 2),
-                    sep="\n\t",
-                )
+                temp_res = list()
+                for _ in tqdm(range(100)):
+                    regressor.fit(x, y, *args, **kwargs)
+                    y_pred = regressor.predict(x)
+                    beta_hat = np.concatenate([[regressor.intercept_], regressor.coef_])
+                    if False:
+                        print(
+                            reg_name,
+                            beta_hat,
+                            np.sum((y - y_pred) ** 2),
+                            loss(y, y_pred),
+                            np.sum((beta_opt - beta_hat) ** 2),
+                            sep="\n\t",
+                        )
+                    temp_res.append(np.sum((beta_opt - beta_hat) ** 2))
+
+                results[name][d][reg_name]['mean'] = np.mean(temp_res)
+                results[name][d][reg_name]['std'] = np.std(temp_res)
+    
+    with open('results.json', 'w') as file:
+        file.write(json.dumps(results))
