@@ -18,15 +18,17 @@ of moments is unspecified, we presume the variance is finite and therefore choos
 robustification and regularization parameters as follows:
 """
 
-c_tau = 1 # cross-val between {.5, 1, 1.5}
-c_lambda = 1 # cross-val between {.5, 1, 1.5}
+c_tau = .5 # cross-val between {.5, 1, 1.5}
+c_lambda = .5 # cross-val between {.5, 1, 1.5}
 
 y_hat = np.mean(y)
-sigma_hat = np.mean((y - y_hat)**2)
-n_eff = n  # for simplicity
+sigma_hat = np.sqrt(np.mean((y - y_hat)**2))
+n_eff = n / np.log(d)  # for simplicity
 t = np.log(n)  # for simplicity
 tau = c_tau*sigma_hat*np.sqrt(n_eff/t)
 lambda_reg = c_lambda*sigma_hat*np.sqrt(n_eff/t)
+lambda_reg = 1e-2
+
 print('Tau={}\nLambda={}'.format(tau, lambda_reg))
 
 regressor = HuberRegressor(
@@ -41,3 +43,9 @@ y_pred = regressor.predict(x)
 print(np.mean((y-y_pred)**2))
 
 print(np.sum((regressor.beta - optimal_beta)**2))
+
+import matplotlib.pyplot as plt
+
+plt.scatter(x[:,0], y)
+plt.scatter(x[:,0], y_pred)
+plt.savefig('scatter.png')

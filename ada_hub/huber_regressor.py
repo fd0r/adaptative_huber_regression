@@ -78,6 +78,8 @@ class HuberRegressor(BaseEstimator):
         # Optimal beta loop
         while True:
             self.logger.info("Step: {}".format(step_counter))
+            self.logger.debug("Beta: ".format(beta_k))
+
             # Find optimal phi
             phi_counter = 0
             pred_k = X @ beta_k
