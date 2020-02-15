@@ -3,6 +3,7 @@ import scipy
 import logging
 from sklearn.linear_model import LinearRegression
 from ada_hub.huber_regressor import HuberRegressor as AdHuberRegressor
+from ada_hub.huber_regressor import HuberLoss
 from sklearn.linear_model import HuberRegressor as SkHuberRegressor
 
 
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     ds = [5, 100, 500, 1000]
     n = 100
     tau = 2
-
+    loss = HuberLoss(tau=tau)
     noises = [
         (scipy.stats.norm(0, 4), "normal"),
         (scipy.stats.t(df=1.5), "t-distrib"),
@@ -60,7 +61,7 @@ if __name__ == "__main__":
                 lambda_reg = c_lambda * sigma_hat * np.sqrt(n_eff / t)
             else:
                 n_eff = n
-                lambda_reg = 0.0001
+                lambda_reg = 0
 
             tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
                 ("Linear Regression", LinearRegression(), list(), dict()),
                 (
                     "Adaptative Huber Regression",
-                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg),
+                    AdHuberRegressor(tau=tau, lambda_reg=lambda_reg, verbose="WARNING"),
                     list(),
                     dict(
                         beta_0=np.random.random(d + 1) * 2 * sigma_hat,
@@ -76,7 +77,12 @@ if __name__ == "__main__":
                         convergence_threshold=1e-8,
                     ),
                 ),
-                ("Huber Regression", SkHuberRegressor(max_iter=1000), list(), dict()),
+                (
+                    "Huber Regression",
+                    SkHuberRegressor(epsilon=tau, alpha=lambda_reg, max_iter=1000),
+                    list(),
+                    dict(),
+                ),
             ]:
                 regressor.fit(x, y, *args, **kwargs)
                 y_pred = regressor.predict(x)
@@ -85,6 +91,7 @@ if __name__ == "__main__":
                     name,
                     beta_hat,
                     np.sum((y - y_pred) ** 2),
+                    loss(y, y_pred),
                     np.sum((beta_opt - beta_hat) ** 2),
                     sep="\n\t",
                 )
