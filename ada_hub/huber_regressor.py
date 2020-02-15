@@ -49,10 +49,19 @@ class HuberRegressor(BaseEstimator):
         self.max_iter = max_iter
         self.max_phi_iter = max_phi_iter
 
+    @property
+    def coef_(self):
+        if self.fit_intercept:
+            return self.beta[1:]
+        return self.beta
+    
+    @property
+    def intercept_(self):
+        if self.fit_intercept:
+            return self.beta[0]
+        return 0
+
     def fit(self, X, y, beta_0, phi_0=2, convergence_threshold=1e-6):
-        # TODO: Implement optimal parameters as in paper
-
-
         # Add intercept if needed
         if self.fit_intercept:
             intercept = np.ones((X.shape[0],))

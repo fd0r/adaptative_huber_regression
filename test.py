@@ -48,10 +48,3 @@ print(np.mean((y-y_pred)**2))
 print(np.sum((regressor.beta - optimal_beta)**2))
 
 print(regressor.beta, optimal_beta, sep="\n")
-
-
-import matplotlib.pyplot as plt
-
-plt.scatter(x[:,0], y)
-plt.scatter(x[:,0], y_pred)
-plt.savefig('scatter.png')
