@@ -39,7 +39,7 @@ class HuberRegressor(BaseEstimator):
             self,
             tau,
             lambda_reg=0,
-            gamma_u=2,
+            gamma_u=1.2,
             verbose=0,
             fit_intercept=True,
             max_iter=3000,
@@ -173,10 +173,10 @@ Raising gamma_u might be a good idea!""".format(
 
 class AdaptativeHuberRegressor(HuberRegressor):
     def __init__(self, c_tau=.5, c_lambda=.5, zero_init=False, **kwargs):
-        super().__init__(self, **kwargs)
         self.c_tau = c_tau
         self.c_lambda = c_lambda
         self.zero_init = zero_init
+        super().__init__(tau=1., **kwargs)
 
     def fit(self, X, y, **kwargs):
         # Find hyper_parameters
