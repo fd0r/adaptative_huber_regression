@@ -58,39 +58,30 @@ if __name__ == "__main__":
                 x, y, beta_opt = generate_data(noise, n, d)
                 beta_opt = np.concatenate([[0], beta_opt])
                 scatter(x, y, 0, "{}_{}.png".format(d, name))
-                c_tau = 0.5  # cross-val between {.5, 1, 1.5} in original paper
-                c_lambda = 1e-2  # cross-val between {.5, 1, 1.5} in original paper
 
                 t = np.log(n)
                 y_hat = np.mean(y)
                 sigma_hat = np.sqrt(np.mean((y - y_hat) ** 2))
-                # for simplicity
 
+                c_tau = .5  # cross-val between {.5, 1, 1.5} in original paper
+                c_lambda = .5  # cross-val between {.5, 1, 1.5} in original paper
                 if d >= n:
                     n_eff = n / np.log(d)  # for simplicity
-                    lambda_reg = c_lambda * sigma_hat * np.sqrt(n_eff / t)
+                    # TODO: CHECK THIS
+                    lambda_reg = c_lambda * sigma_hat * np.sqrt(t / n)
                 else:
                     n_eff = n
                     lambda_reg = 0
 
-                tau = c_tau * sigma_hat * np.sqrt(n_eff / t)
+                # n_eff / t in the paper > but n / t in theoretical part
+                tau = c_tau * sigma_hat * np.sqrt(n / t)
                 loss = HuberLoss(tau=tau)
 
                 for reg_name, regressor, args, kwargs in [
                     ("Linear Regression", LinearRegression(), list(), dict()),
                     (
                         "Adaptative Huber Regression",
-                        AdHuberRegressor(tau=tau, lambda_reg=lambda_reg),
-                        list(),
-                        dict(
-                            beta_0=np.random.random(d + 1) * 2 * sigma_hat,
-                            phi_0=1e-6,
-                            convergence_threshold=1e-8,
-                        ),
-                    ),
-                    (
-                        "Huber Regression",
-                        SkHuberRegressor(epsilon=tau, alpha=lambda_reg, max_iter=1000),
+                        SkHuberRegressor(epsilon=tau, alpha=lambda_reg, max_iter=10000),
                         list(),
                         dict(),
                     ),
@@ -109,5 +100,5 @@ if __name__ == "__main__":
                         )
                     results[name][d][reg_name].append(np.sum((beta_opt - beta_hat) ** 2))
 
-    with open("results.json", "w") as file:
+    with open("../results/results_sklearn.json", "w") as file:
         file.write(json.dumps(results))

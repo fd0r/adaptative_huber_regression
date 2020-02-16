@@ -1,3 +1,5 @@
 
 ada_hub/__pycache__/
 *.png
+venv/
+.idea/

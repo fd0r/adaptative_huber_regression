@@ -1,7 +1,8 @@
-import numpy as np
 import logging
-from sklearn.base import BaseEstimator
 import sys
+
+import numpy as np
+from sklearn.base import BaseEstimator
 
 
 class HuberLoss:
@@ -29,20 +30,20 @@ class HuberLoss:
         return self.tau * np.sign(x)
 
 
-def S(x, lamb):
+def soft_thresholding(x, lamb):
     return np.sign(x) * np.maximum(np.abs(x) - lamb, np.zeros(x.shape))
 
 
 class HuberRegressor(BaseEstimator):
     def __init__(
-        self,
-        tau,
-        lambda_reg=0,
-        gamma_u=2,
-        verbose=0,
-        fit_intercept=True,
-        max_iter=3000,
-        max_phi_iter=1000,
+            self,
+            tau,
+            lambda_reg=0,
+            gamma_u=2,
+            verbose=0,
+            fit_intercept=True,
+            max_iter=3000,
+            max_phi_iter=1000,
     ):
         super().__init__()
         self.loss = HuberLoss(tau=tau)
@@ -110,7 +111,7 @@ class HuberRegressor(BaseEstimator):
 
             # Optimal phi loop
             while True:
-                beta_k_1 = S(beta_k - grad_k / phi, self.lambda_reg / phi)
+                beta_k_1 = soft_thresholding(beta_k - grad_k / phi, self.lambda_reg / phi)
                 self.logger.debug(
                     "Beta_k after applying S:  {}\nWith lambda in S = {}".format(
                         beta_k_1, self.lambda_reg / phi
@@ -170,6 +171,43 @@ Raising gamma_u might be a good idea!""".format(
         return X @ self.beta
 
 
+class AdaptativeHuberRegressor(HuberRegressor):
+    def __init__(self, c_tau=.5, c_lambda=.5, zero_init=False, **kwargs):
+        super().__init__(self, **kwargs)
+        self.c_tau = c_tau
+        self.c_lambda = c_lambda
+        self.zero_init = zero_init
+
+    def fit(self, X, y, **kwargs):
+        # Find hyper_parameters
+        assert X.shape[0] == len(y)
+        n = len(y)
+        t = np.log(n)
+        d = X.shape[1]
+        y_hat = np.mean(y)
+        # Estimate 2nd order moment
+        sigma_hat = np.sqrt(np.mean((y - y_hat) ** 2))
+        if self.fit_intercept:
+            shape = d + 1
+        else:
+            shape = d
+        if self.zero_init:
+            beta_0 = np.zeros((shape,))
+        else:
+            beta_0 = (np.random.random(shape) - .5) * sigma_hat
+        t = np.log(n)
+        # We only consider \delta = 1
+        # TODO: Implement this with arbitrary \delta
+        if n <= d:  # High dimension
+            self.lambda_reg = 0
+            self.tau = self.c_tau * sigma_hat * np.sqrt(n)
+        else:
+            self.lambda_reg = self.c_lambda * sigma_hat * np.sqrt(np.log(d) / n)
+            self.tau = self.c_tau * sigma_hat * np.sqrt(n / np.log(d))
+        super().fit(X, y, beta_0=beta_0, **kwargs)
+        return self
+
+
 class TruncatedHuberRegressor(HuberRegressor):
     def __init__(self, trunc_param, *kwargs):
         super().__init__(*kwargs)
@@ -179,5 +217,18 @@ class TruncatedHuberRegressor(HuberRegressor):
             kwargs["X"] = np.min(
                 np.max(-self.trunc_param, kwargs["X"]), self.trunc_param
             )
+            super().fit(**kwargs)
+            return self
 
-            return super().fit(**kwargs)
+
+class TruncatedAdaptativeHuberRegressor(AdaptativeHuberRegressor):
+    def __init__(self, trunc_param, *kwargs):
+        super().__init__(*kwargs)
+        self.trunc_param = trunc_param
+
+        def fit(**kwargs):
+            kwargs["X"] = np.min(
+                np.max(-self.trunc_param, kwargs["X"]), self.trunc_param
+            )
+            super().fit(**kwargs)
+            return self

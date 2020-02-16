@@ -13,7 +13,6 @@ import json
 
 
 def generate_data(noise, n, d):
-
     beta = np.array([5, -2, 0, 0, 3])
     beta = np.concatenate((beta, np.zeros((max(d - 5, 0),))))
 
@@ -103,7 +102,7 @@ if __name__ == "__main__":
                 for elt in beta_hats
             ],
         )
-        plt.savefig("log_errors_{}_{}.png".format(n, d))
+        plt.savefig("../imageslog_errors_{}_{}.png".format(n, d))
         plt.close()
 
         plt.plot(
@@ -123,14 +122,13 @@ if __name__ == "__main__":
             label="linear",
         )
         plt.legend()
-        plt.savefig("errors_{}_{}.png".format(n, d))
+        plt.savefig("../images/errors_{}_{}.png".format(n, d))
         plt.close()
 
-        with open("errors_{}_{}.json".format(n, d), "w") as file:
+        with open("../results/errors_{}_{}.json".format(n, d), "w") as file:
             file.write(
                 json.dumps(
                     {"beta_hats": beta_hats, "beta_hats_linear": beta_hats_linear},
                     cls=NumpyEncoder,
                 )
             )
-
