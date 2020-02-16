@@ -199,11 +199,11 @@ class AdaptativeHuberRegressor(HuberRegressor):
         # We only consider \delta = 1
         # TODO: Implement this with arbitrary \delta
         if n <= d:  # High dimension
-            self.lambda_reg = self.c_lambda * sigma_hat * np.sqrt(np.log(d) / n)
-            self.tau = self.c_tau * sigma_hat * np.sqrt(n / np.log(d))
+            self.lambda_reg = self.c_lambda * sigma_hat * np.sqrt(t * np.log(d) / n)
+            self.tau = self.c_tau * sigma_hat * np.sqrt(n / np.log(d)*t)
         else:
             self.lambda_reg = 0
-            self.tau = self.c_tau * sigma_hat * np.sqrt(n)
+            self.tau = self.c_tau * sigma_hat * np.sqrt(n/t)
         super().fit(X, y, beta_0=beta_0, **kwargs)
         return self
 
