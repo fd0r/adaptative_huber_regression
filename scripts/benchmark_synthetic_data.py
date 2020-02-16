@@ -84,7 +84,7 @@ if __name__ == "__main__":
                         list(),
                         dict(
                             beta_0=np.random.random(d + 1) * 2 * sigma_hat,
-                            phi_0=1e-6,
+                            phi_0=1e-4,
                             convergence_threshold=1e-8,
                         ),
                     ),
