@@ -187,6 +187,7 @@ class AdaptativeHuberRegressor(HuberRegressor):
         y_hat = np.mean(y)
         # Estimate 2nd order moment
         sigma_hat = np.sqrt(np.mean((y - y_hat) ** 2))
+
         if self.fit_intercept:
             shape = d + 1
         else:
@@ -195,15 +196,14 @@ class AdaptativeHuberRegressor(HuberRegressor):
             beta_0 = np.zeros((shape,))
         else:
             beta_0 = (np.random.random(shape) - .5) * sigma_hat
-        t = np.log(n)
         # We only consider \delta = 1
         # TODO: Implement this with arbitrary \delta
         if n <= d:  # High dimension
-            self.lambda_reg = 0
-            self.tau = self.c_tau * sigma_hat * np.sqrt(n)
-        else:
             self.lambda_reg = self.c_lambda * sigma_hat * np.sqrt(np.log(d) / n)
             self.tau = self.c_tau * sigma_hat * np.sqrt(n / np.log(d))
+        else:
+            self.lambda_reg = 0
+            self.tau = self.c_tau * sigma_hat * np.sqrt(n)
         super().fit(X, y, beta_0=beta_0, **kwargs)
         return self
 

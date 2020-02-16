@@ -22,9 +22,10 @@ def find_parameters(x, y, c_tau, c_lambda):
     # We only consider \delta = 1
     # TODO: Implement this with arbitrary \delta
     if n <= d:  # High dimension
-        lambda_reg = 0
         tau = c_tau * sigma_hat * np.sqrt(n)
-    else:
         lambda_reg = c_lambda * sigma_hat * np.sqrt(np.log(d) / n)
+    else:
+        lambda_reg = 0
         tau = c_tau * sigma_hat * np.sqrt(n / np.log(d))
+
     return tau, lambda_reg
